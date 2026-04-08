@@ -7,7 +7,7 @@
  *   2. Push index.html + app.js to GitHub → enable Pages.
  */
 
-const HF_SPACE_URL = 'https://REPLACE_WITH_YOUR_HUGGING_FACE_URL.hf.space';
+const HF_SPACE_URL = 'https://sumit989-sumit.hf.space';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const codeInput = document.getElementById('codeInput');
