@@ -136,12 +136,12 @@ Respond in JSON:
 
 
 @app.route("/openenv/reset", methods=["GET", "POST"])
+@app.route("/openenv/reset/", methods=["GET", "POST"])
 def openenv_reset():
     return jsonify({
         "status": "success",
         "message": "Environment reset"
     })
-
 
 # ── Entry ────────────────────────────────────────────────
 if __name__ == "__main__":
