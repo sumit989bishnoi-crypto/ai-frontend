@@ -134,9 +134,7 @@ Respond in JSON:
         }), 500
 
 
-
-@app.route("/openenv/reset", methods=["GET", "POST"])
-@app.route("/openenv/reset/", methods=["GET", "POST"])
+@app.route("/openenv/reset", methods=["GET", "POST"], strict_slashes=False)
 def openenv_reset():
     return jsonify({
         "status": "success",
