@@ -1,11 +1,3 @@
-/**
- * CodeRescue — app.js
- * Handles language selection, API calls, and result rendering.
- *
- * HOW TO DEPLOY:
- *   1. Set HF_SPACE_URL below to your Hugging Face Space URL.
- *   2. Push index.html + app.js to GitHub → enable Pages.
- */
 
 const HF_SPACE_URL = 'https://sumit989-sumit.hf.space';
 
