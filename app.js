@@ -38,7 +38,6 @@ langRow.addEventListener('click', (e) => {
 function getEndpoint(path) {
     const isGitHubPages = window.location.hostname.includes('github.io');
     const base = isGitHubPages ? HF_SPACE_URL : '';
-    // Ensure no double slashes or trailing slash issues
     const normalizedBase = base.endsWith('/') ? base.slice(0, -1) : base;
     return `${normalizedBase}${path}`;
 }
@@ -94,7 +93,11 @@ analyzeBtn.addEventListener('click', async () => {
 // ── Render ─────────────────────────────────────────────────────────────────────
 function renderResult(data) {
     errorEl.textContent = data.error || 'No explanation returned.';
-    fixedCodeEl.textContent = data.fixed_code || '// No fixed code returned.';
+
+    // ✅ convert literal \n to real line breaks so code displays with indentation
+    const fixedCode = (data.fixed_code || '// No fixed code returned.').replace(/\\n/g, '\n');
+    fixedCodeEl.textContent = fixedCode;
+
     outputTitle.textContent = `result.json — ${data.language || selectedLang}`;
     statusText.textContent = `analysis complete · ${new Date().toLocaleTimeString()}`;
 
