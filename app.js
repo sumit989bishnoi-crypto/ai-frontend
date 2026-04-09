@@ -33,6 +33,10 @@ function getEndpoint(path) {
   return `${base}${path}`;
 }
 
+function debugLog(location, message, data, hypothesisId, runId = 'pre-fix') {
+  fetch('http://127.0.0.1:7374/ingest/dfece7be-4d02-467c-800a-cdc92e86d973',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'67ab23'},body:JSON.stringify({sessionId:'67ab23',runId,hypothesisId,location,message,data,timestamp:Date.now()})}).catch(()=>{});
+}
+
 // ── Main analyze flow ─────────────────────────────────────────────────────────
 analyzeBtn.addEventListener('click', async () => {
   const code = codeInput.value.trim();
@@ -46,21 +50,52 @@ analyzeBtn.addEventListener('click', async () => {
   hideOutput();
 
   try {
+    // #region agent log
+    debugLog('app.js:analyze_click_start', 'Analyze clicked with payload meta', { codeLength: code.length, selectedLang }, 'H1');
+    // #endregion
     const res = await fetch(getEndpoint('/analyze'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, language: selectedLang }),
     });
 
-    const data = await res.json();
+    console.log("RAW RESPONSE STATUS:", res.status);
+    // #region agent log
+    debugLog('app.js:after_fetch', 'Received analyze response', { status: res.status, contentType: res.headers.get('content-type') || null, ok: res.ok }, 'H1');
+    // #endregion
+
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      let text = '';
+      try {
+        text = await res.text();
+      } catch (_) {
+        text = '[unreadable response body]';
+      }
+      // #region agent log
+      debugLog('app.js:json_parse_failed', 'JSON parse failed; fallback text captured', { status: res.status, snippet: text.slice(0, 200) }, 'H2');
+      // #endregion
+      throw new Error(`Server returned non-JSON:\n${text.slice(0, 200)}`);
+    }
+    // #region agent log
+    debugLog('app.js:json_parse_success', 'JSON parse succeeded', { hasErrorField: !!data?.error, hasFixedCodeField: !!data?.fixed_code }, 'H2');
+    // #endregion
 
     if (!res.ok) {
-      throw new Error(data.error || `Server error ${res.status}`);
+      // #region agent log
+      debugLog('app.js:non_ok_response', 'Non-OK response with parsed JSON', { status: res.status, error: data?.error || null }, 'H3');
+      // #endregion
+      throw new Error((data && data.error) || `Server error ${res.status}`);
     }
 
     renderResult(data);
 
   } catch (err) {
+    // #region agent log
+    debugLog('app.js:analyze_catch', 'Analyze request failed in catch', { message: err?.message || 'unknown error' }, 'H4');
+    // #endregion
     renderResult({
       error: err.message || 'Something went wrong. Please try again.',
       fixed_code: '',
@@ -123,10 +158,20 @@ function shake(el) {
 }
 
 // ── Health-check on load (wakes up the HF space) ─────────────────────────────
-(async () => {
-  try {
-    await fetch(getEndpoint('/health'), { method: 'GET' });
-  } catch (_) {
-    // silent — just wakes the space
+async function wakeUp() {
+  for (let i = 0; i < 3; i++) {
+    try {
+      await fetch(getEndpoint('/health'), { method: 'GET' });
+      // #region agent log
+      debugLog('app.js:wakeup_success', 'Wake-up health check succeeded', { attempt: i + 1 }, 'H5');
+      // #endregion
+      return;
+    } catch (_) {
+      // #region agent log
+      debugLog('app.js:wakeup_retry', 'Wake-up health check failed', { attempt: i + 1 }, 'H5');
+      // #endregion
+    }
   }
-})();
+}
+
+void wakeUp();
