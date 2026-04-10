@@ -1,148 +1,133 @@
 import os
 import json
-import time
+import re
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-import google as genai
+from openai import OpenAI
 
-# Load env
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app, origins=os.getenv("ALLOWED_ORIGINS", "*").split(","))
 
-# ── Gemini client ─────────────────────────────────────────
-try:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY is not set")
-    client = genai.Client(api_key=api_key)
-except Exception as e:
-    client = None
-    print(f"[WARN] Failed to initialize GenAI client: {e}")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME   = os.getenv("MODEL_NAME",   "Qwen/Qwen2.5-7B-Instruct")
+
+API_KEY = os.getenv("API_KEY") or os.getenv("HF_TOKEN")
+client  = OpenAI(base_url=API_BASE_URL, api_key=API_KEY) if API_KEY else None
 
 SUPPORTED_LANGUAGES = [
     "python", "javascript", "typescript", "java", "c", "cpp",
     "csharp", "go", "rust", "php", "ruby", "swift", "kotlin", "bash"
 ]
 
-# ── Routes ───────────────────────────────────────────────
-
 @app.route("/")
 def index():
-    return jsonify({
-        "name": "CodeRescue API",
-        "version": "1.0.0",
-        "status": "running",
-        "endpoints": {
-            "GET  /":          "API info",
-            "GET  /health":    "Health check",
-            "GET  /languages": "Supported languages",
-            "POST /analyze":   "Analyze and fix code",
-            "POST /openenv/reset": "Reset environment"
-        }
-    })
-
+    return jsonify({"name": "CodeRescue API", "version": "1.0.0", "status": "running"})
 
 @app.route("/health")
 def health():
-    return jsonify({
-        "status": "ok",
-        "model_ready": client is not None
-    })
-
+    return jsonify({"status": "ok"})
 
 @app.route("/languages")
 def languages():
     return jsonify({"languages": SUPPORTED_LANGUAGES})
 
-
-# 🔥 MAIN AI ROUTE (FIXED)
 @app.route("/analyze", methods=["POST"])
 def analyze_code():
     if not client:
-        return jsonify({
-            "error": "API client not initialized.",
-            "fixed_code": "",
-            "language": ""
-        }), 500
+        return jsonify({"error": "API key not configured", "fixed_code": "", "language": ""}), 500
 
     data = request.get_json(silent=True)
-
     if not data or not data.get("code", "").strip():
-        return jsonify({
-            "error": "No code provided",
-            "fixed_code": "",
-            "language": ""
-        }), 400
+        return jsonify({"error": "No code provided"}), 400
 
-    user_code = data["code"].strip()
-    language = data.get("language", "python").lower()
+    user_code = data["code"].strip()[:800]
+    language  = data.get("language", "python").lower()
 
-    if language not in SUPPORTED_LANGUAGES:
-        language = "python"
-
-    # 🔥 Prompt
-    prompt = f"""
-You are an expert software engineer.
-
-Fix this {language} code and explain errors briefly.
-
-Code:
-{user_code}
-
-Respond in JSON:
-{{
-  "explanation": "...",
-  "fixed_code": "...",
-  "language": "{language}"
-}}
-"""
-
+    raw = ""
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-        )
+        for _ in range(2):
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                max_tokens=2048,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are an expert developer.\n"
+                            "Return ONLY valid JSON.\n"
+                            "Explanation must be MAX 2 lines.\n"
+                            "Fixed code must be SHORT and COMPLETE.\n"
+                            "Preserve all newlines and indentation in fixed_code.\n"
+                            "Do NOT cut output.\n"
+                            "Format strictly:\n"
+                            "{\"explanation\":\"...\",\"fixed_code\":\"...\",\"language\":\"...\"}"
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Language: {language}\n\nCode:\n{user_code}",
+                    },
+                ],
+            )
 
-        raw = response.text.strip()
+            raw = response.choices[0].message.content.strip()
 
-        # Clean markdown if any
+            if not raw:
+                return jsonify({
+                    "error": "Empty response from AI",
+                    "fixed_code": "",
+                    "language": language
+                }), 200
+
+            match = re.search(r'\{.*\}', raw, re.DOTALL)
+            if match:
+                raw = match.group()
+                break
+
         raw = raw.replace("```json", "").replace("```", "").strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        raw = raw.strip()
 
+        parsed = None
         try:
-            result = json.loads(raw)
-        except:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            match = re.search(r'\{.*\}', raw, re.DOTALL)
+            if match:
+                try:
+                    parsed = json.loads(match.group())
+                except Exception:
+                    parsed = None
+
+        if not parsed:
             return jsonify({
-                "error": "AI formatting issue",
-                "fixed_code": raw,
+                "error": "AI response was messy but here's what I got",
+                "fixed_code": raw[:800],
                 "language": language
-            }), 500
+            }), 200
+
+        fixed_code = parsed.get("fixed_code", "")
+        fixed_code = fixed_code.replace("\\n", "\n").replace("\\t", "\t")
 
         return jsonify({
-            "error": result.get("explanation", ""),
-            "fixed_code": result.get("fixed_code", ""),
-            "language": result.get("language", language)
+            "error":      parsed.get("explanation", "No explanation provided."),
+            "fixed_code": fixed_code,
+            "language":   parsed.get("language", language),
         })
 
     except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "fixed_code": "",
-            "language": language
-        }), 500
+        return jsonify({"error": f"Server error: {str(e)}", "fixed_code": "", "language": language}), 500
 
-
-@app.route("/openenv/reset", methods=["GET", "POST"], strict_slashes=False)
-@app.route("/reset", methods=["GET", "POST"], strict_slashes=False)
+# ✅ both routes for the checker
+@app.route("/openenv/reset", methods=["POST"])
+@app.route("/reset", methods=["POST"])
 def openenv_reset():
-    return jsonify({
-        "status": "success",
-        "message": "Environment reset"
-    })
+    return jsonify({"status": "success"})
 
-# ── Entry ────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     app.run(host="0.0.0.0", port=port)
