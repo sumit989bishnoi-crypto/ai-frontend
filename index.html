@@ -4,487 +4,513 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CodeRescue — AI Bug Fixer</title>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Unbounded:wght@400;700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <style>
-    /* ── Variables ─────────────────────────────── */
     :root {
-      --bg:           #050708;
-      --surface:      #0b0e12;
-      --surface2:     #111419;
-      --border:       #1c2028;
-      --border-glow:  #2af59820;
-      --accent:       #2af598;
-      --accent-dim:   #1a9e63;
-      --accent-glow:  #2af59840;
-      --red:          #ff4560;
-      --amber:        #f5a623;
-      --blue:         #4fc3f7;
-      --text:         #d4dbe8;
-      --text-muted:   #4a5568;
-      --text-dim:     #8896a8;
-      --mono:         'JetBrains Mono', monospace;
-      --display:      'Unbounded', sans-serif;
+      --bg: #0d0d0d;
+      --sidebar-bg: #111111;
+      --surface: #1a1a1a;
+      --surface2: #222222;
+      --border: rgba(255,255,255,0.08);
+      --border-hover: rgba(255,255,255,0.14);
+      --accent: #10a37f;
+      --accent-dim: #0d8a6c;
+      --accent-muted: rgba(16,163,127,0.12);
+      --text: #ececec;
+      --text-muted: #8e8ea0;
+      --text-dim: #555560;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+      --red: #ff6b6b;
+      --radius: 12px;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html { scroll-behavior: smooth; }
+    html, body { height: 100%; overflow: hidden; }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: var(--mono);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-
-    /* ── Scanline overlay ──────────────────────── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,.06) 2px,
-        rgba(0,0,0,.06) 4px
-      );
-      pointer-events: none;
-      z-index: 999;
-    }
-
-    /* ── Noise texture ─────────────────────────── */
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 998;
-      opacity: .4;
-    }
-
-    /* ── Glowing grid bg ───────────────────────── */
-    .grid-bg {
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(42,245,152,.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(42,245,152,.025) 1px, transparent 1px);
-      background-size: 48px 48px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* ── Page wrapper ──────────────────────────── */
-    .page {
-      position: relative;
-      z-index: 1;
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 3rem 1.5rem 5rem;
-    }
-
-    /* ── Header ────────────────────────────────── */
-    header {
-      margin-bottom: 3.5rem;
-      animation: fadeDown .6s ease both;
-    }
-
-    .header-meta {
-      font-size: .65rem;
-      letter-spacing: .2em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: .75rem;
+      font-family: var(--sans);
       display: flex;
-      align-items: center;
-      gap: .5rem;
+      height: 100vh;
     }
 
-    .header-meta::before {
-      content: '';
-      display: inline-block;
-      width: 20px;
-      height: 1px;
-      background: var(--accent);
-    }
-
-    h1 {
-      font-family: var(--display);
-      font-size: clamp(2rem, 6vw, 3.5rem);
-      font-weight: 900;
-      line-height: 1;
-      letter-spacing: -.02em;
-      color: #fff;
-    }
-
-    h1 span {
-      color: var(--accent);
-      text-shadow: 0 0 40px var(--accent-glow);
-    }
-
-    .tagline {
-      margin-top: .75rem;
-      font-size: .8rem;
-      color: var(--text-muted);
-      letter-spacing: .05em;
-    }
-
-    /* ── Panel ─────────────────────────────────── */
-    .panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 1rem 0.75rem;
+      gap: 0.5rem;
       overflow: hidden;
-      margin-bottom: 1.25rem;
-      animation: fadeUp .5s ease both;
     }
 
-    .panel:nth-child(2) { animation-delay: .08s; }
-    .panel:nth-child(3) { animation-delay: .16s; }
-
-    .panel-bar {
+    .sidebar-logo {
       display: flex;
       align-items: center;
-      gap: .6rem;
-      padding: .75rem 1.25rem;
-      background: var(--surface2);
+      gap: 0.6rem;
+      padding: 0.5rem 0.75rem 1rem;
       border-bottom: 1px solid var(--border);
+      margin-bottom: 0.25rem;
     }
 
-    .dot { width: 10px; height: 10px; border-radius: 50%; }
-    .dot-red    { background: #ff5f57; }
-    .dot-amber  { background: #febc2e; }
-    .dot-green  { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
-
-    .panel-title {
-      font-size: .68rem;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-left: .25rem;
-      flex: 1;
-    }
-
-    /* ── Language selector ─────────────────────── */
-    .lang-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .4rem;
-      padding: .9rem 1.25rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .lang-btn {
-      font-family: var(--mono);
-      font-size: .68rem;
-      padding: .3em .75em;
-      border-radius: 4px;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--text-dim);
-      cursor: pointer;
-      transition: all .15s;
-      letter-spacing: .04em;
-    }
-
-    .lang-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
-
-    .lang-btn.active {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: var(--accent-glow);
-      box-shadow: 0 0 10px var(--border-glow);
-    }
-
-    /* ── Textarea ──────────────────────────────── */
-    .code-area {
-      width: 100%;
-      min-height: 220px;
-      padding: 1.25rem;
-      background: transparent;
-      border: none;
-      outline: none;
-      resize: vertical;
-      font-family: var(--mono);
-      font-size: .82rem;
-      line-height: 1.7;
-      color: #c8f7dc;
-      caret-color: var(--accent);
-    }
-
-    .code-area::placeholder { color: var(--text-muted); }
-
-    /* ── Button ────────────────────────────────── */
-    .btn-row { padding: 1rem 1.25rem; border-top: 1px solid var(--border); }
-
-    .analyze-btn {
-      width: 100%;
-      padding: .85rem;
-      font-family: var(--display);
-      font-size: .75rem;
-      font-weight: 700;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: var(--bg);
+    .logo-icon {
+      width: 28px; height: 28px;
       background: var(--accent);
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all .2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: .6rem;
-      box-shadow: 0 0 20px var(--accent-glow);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-icon svg { width: 16px; height: 16px; fill: none; stroke: white; stroke-width: 2; }
+
+    .logo-name {
+      font-size: 0.95rem; font-weight: 600;
+      color: var(--text); letter-spacing: -0.01em;
     }
 
-    .analyze-btn:hover:not(:disabled) {
-      background: #3fffa8;
-      box-shadow: 0 0 35px var(--accent-glow);
-      transform: translateY(-1px);
+    .new-chat-btn {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: transparent; color: var(--text);
+      font-family: var(--sans); font-size: 0.82rem;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s;
+      width: 100%; text-align: left;
+    }
+    .new-chat-btn:hover { background: var(--surface); border-color: var(--border-hover); }
+    .new-chat-btn svg { width: 14px; height: 14px; opacity: 0.7; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; }
+
+    .sidebar-section-label {
+      font-size: 0.7rem; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-dim);
+      padding: 0.75rem 0.75rem 0.25rem;
     }
 
-    .analyze-btn:disabled {
-      opacity: .5;
-      cursor: not-allowed;
-      transform: none;
+    .history-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 0.75rem; border-radius: 8px;
+      font-size: 0.8rem; color: var(--text-muted);
+      cursor: pointer; transition: background 0.12s;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    .history-item:hover { background: var(--surface); color: var(--text); }
+    .history-item svg { width: 13px; height: 13px; flex-shrink: 0; opacity: 0.5; fill: none; stroke: currentColor; stroke-width: 1.5; }
 
-    .spinner {
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(0,0,0,.3);
-      border-top-color: var(--bg);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      display: none;
+    .sidebar-footer { margin-top: auto; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+    .model-badge { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.75rem; color: var(--text-muted); }
+    .model-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 2.5s ease infinite; }
+
+    /* Main */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
+    .topbar-title { font-size: 0.88rem; font-weight: 500; color: var(--text-muted); }
 
-    .analyze-btn.loading .spinner { display: block; }
-    .analyze-btn.loading .btn-text::after { content: '...'; }
-
-    /* ── Divider ───────────────────────────────── */
-    .divider {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      margin: .5rem 0;
-      color: var(--text-muted);
-      font-size: .65rem;
-      letter-spacing: .2em;
-      text-transform: uppercase;
+    select.lang-selector {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.35rem 1.6rem 0.35rem 0.65rem;
+      font-family: var(--mono); font-size: 0.72rem; color: var(--text);
+      cursor: pointer; outline: none; transition: border-color 0.15s;
+      -webkit-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238e8ea0'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 0.5rem center;
     }
+    select.lang-selector:hover { border-color: var(--border-hover); }
 
-    .divider::before, .divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
+    /* Chat */
+    .chat-container { flex: 1; overflow-y: auto; padding: 1.5rem 0; scroll-behavior: smooth; }
+    .chat-container::-webkit-scrollbar { width: 5px; }
+    .chat-container::-webkit-scrollbar-track { background: transparent; }
+    .chat-container::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 10px; }
+
+    /* Empty state */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; gap: 1rem; padding: 2rem; text-align: center;
+      animation: fadeIn 0.4s ease;
     }
-
-    /* ── Output ────────────────────────────────── */
-    #outputSection { display: none; }
-    #outputSection.visible { display: block; animation: fadeUp .4s ease both; }
-
-    .explanation-box {
-      padding: 1.1rem 1.25rem;
-      background: rgba(255,69,96,.05);
-      border-bottom: 1px solid rgba(255,69,96,.12);
+    .empty-icon {
+      width: 56px; height: 56px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
     }
+    .empty-icon svg { width: 26px; height: 26px; fill: none; stroke: var(--accent); stroke-width: 1.8; }
+    .empty-state h2 { font-size: 1.3rem; font-weight: 500; color: var(--text); letter-spacing: -0.02em; }
+    .empty-state p { font-size: 0.85rem; color: var(--text-muted); max-width: 340px; line-height: 1.6; }
 
-    .output-label {
-      font-size: .6rem;
-      letter-spacing: .18em;
-      text-transform: uppercase;
-      margin-bottom: .5rem;
-      display: flex;
-      align-items: center;
-      gap: .4rem;
+    .suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0.5rem; width: 100%; max-width: 480px; }
+    .suggestion-chip {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.65rem 0.9rem; font-size: 0.78rem; color: var(--text-muted);
+      cursor: pointer; text-align: left; transition: background 0.12s, border-color 0.12s, color 0.12s;
+      font-family: var(--sans); line-height: 1.4;
     }
+    .suggestion-chip:hover { background: var(--surface2); border-color: var(--border-hover); color: var(--text); }
+    .suggestion-chip strong { display: block; color: var(--text); font-weight: 500; font-size: 0.8rem; margin-bottom: 0.15rem; }
 
-    .label-bug  { color: var(--red); }
-    .label-fix  { color: var(--accent); }
+    /* Messages */
+    .message-group { max-width: 760px; margin: 0 auto; padding: 0 1.5rem; }
+    .message { display: flex; gap: 1rem; padding: 1.25rem 0; animation: fadeUp 0.3s ease; }
+    .message + .message { border-top: 1px solid var(--border); }
 
-    .label-icon { font-size: .8rem; }
-
-    #errorExplanation {
-      font-size: .82rem;
-      line-height: 1.7;
-      color: #ffb3bf;
+    .avatar {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 600; flex-shrink: 0; margin-top: 2px;
     }
+    .avatar-user { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); font-family: var(--mono); }
+    .avatar-assistant { background: var(--accent); color: white; }
+    .avatar-assistant svg { width: 16px; height: 16px; fill: none; stroke: white; stroke-width: 1.8; }
 
-    /* Fixed code block */
-    .fixed-code-wrap {
-      padding: 1.25rem;
-      position: relative;
-    }
+    .message-body { flex: 1; min-width: 0; }
+    .message-sender { font-size: 0.78rem; font-weight: 500; color: var(--text-muted); margin-bottom: 0.5rem; }
 
-    .copy-btn {
-      position: absolute;
-      top: 1.25rem;
-      right: 1.25rem;
-      font-family: var(--mono);
-      font-size: .65rem;
-      padding: .3em .75em;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: var(--surface2);
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all .15s;
-      letter-spacing: .06em;
-    }
+    .user-code-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .code-block-header { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem; background: var(--surface2); border-bottom: 1px solid var(--border); }
+    .code-lang-tag { font-family: var(--mono); font-size: 0.68rem; color: var(--text-muted); letter-spacing: 0.06em; }
+    .code-block-body { padding: 1rem; font-family: var(--mono); font-size: 0.8rem; line-height: 1.7; color: #c8f7dc; white-space: pre-wrap; word-break: break-all; max-height: 280px; overflow-y: auto; }
 
+    .response-cards { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .bug-card { background: rgba(255,107,107,0.06); border: 1px solid rgba(255,107,107,0.18); border-radius: var(--radius); padding: 1rem 1.1rem; }
+    .card-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.6rem; }
+    .card-label-bug { color: var(--red); }
+    .card-label-fix { color: var(--accent); }
+    .card-label-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .dot-red { background: var(--red); }
+    .dot-green { background: var(--accent); }
+    .bug-explanation { font-size: 0.85rem; line-height: 1.7; color: #ffb3bf; }
+
+    .fix-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .fix-card-header { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1rem; background: var(--surface2); border-bottom: 1px solid var(--border); }
+
+    .copy-btn { font-family: var(--mono); font-size: 0.65rem; padding: 0.25em 0.7em; border: 1px solid var(--border); border-radius: 5px; background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
     .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .copy-btn.copied { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+    .copy-btn.copied { border-color: var(--accent); color: var(--accent); background: var(--accent-muted); }
 
-    #fixedCode {
-      display: block;
-      font-family: var(--mono);
-      font-size: .8rem;
-      line-height: 1.75;
-      color: #a8f0c6;
-      white-space: pre-wrap;
-      word-break: break-all;
-      padding-right: 4rem;
+    .fix-code { padding: 1rem; font-family: var(--mono); font-size: 0.8rem; line-height: 1.75; color: #a8f0c6; white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow-y: auto; }
+
+    .loading-dots { display: flex; align-items: center; gap: 4px; padding: 0.3rem 0; }
+    .loading-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); animation: dotBounce 1.2s ease infinite; }
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    /* Input */
+    .input-area { border-top: 1px solid var(--border); padding: 1rem 1.5rem 1.25rem; flex-shrink: 0; background: var(--bg); }
+    .input-wrapper { max-width: 760px; margin: 0 auto; position: relative; }
+
+    .input-box {
+      width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 0.9rem 3.5rem 0.9rem 1.1rem;
+      font-family: var(--mono); font-size: 0.82rem; line-height: 1.6; color: var(--text);
+      resize: none; outline: none; min-height: 52px; max-height: 200px;
+      transition: border-color 0.15s; display: block; overflow-y: auto;
     }
+    .input-box:focus { border-color: var(--border-hover); }
+    .input-box::placeholder { color: var(--text-dim); }
 
-    /* ── Status bar ────────────────────────────── */
-    .status-bar {
-      display: flex;
-      align-items: center;
-      gap: .75rem;
-      padding: .5rem 1.25rem;
-      font-size: .65rem;
-      letter-spacing: .1em;
-      color: var(--text-muted);
-      border-top: 1px solid var(--border);
-      background: var(--surface2);
+    .send-btn {
+      position: absolute; right: 0.65rem; bottom: 0.65rem;
+      width: 32px; height: 32px; background: var(--accent); border: none; border-radius: 8px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, transform 0.1s, opacity 0.15s;
     }
+    .send-btn:hover { background: var(--accent-dim); transform: scale(1.04); }
+    .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .send-btn svg { width: 15px; height: 15px; fill: none; stroke: white; stroke-width: 2; }
 
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 6px var(--accent);
-      animation: pulse 2s ease infinite;
-    }
+    .input-footer { display: flex; align-items: center; justify-content: center; margin-top: 0.65rem; font-size: 0.68rem; color: var(--text-dim); }
 
-    /* ── Footer ────────────────────────────────── */
-    footer {
-      margin-top: 3rem;
-      text-align: center;
-      font-size: .65rem;
-      color: var(--text-muted);
-      letter-spacing: .1em;
-    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    @keyframes dotBounce { 0%,80%,100% { transform: scale(0.7); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
 
-    footer a { color: var(--accent-dim); text-decoration: none; }
-    footer a:hover { color: var(--accent); }
-
-    /* ── Keyframes ─────────────────────────────── */
-    @keyframes fadeDown { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: none; } }
-    @keyframes fadeUp   { from { opacity: 0; transform: translateY(16px);  } to { opacity: 1; transform: none; } }
-    @keyframes spin     { to { transform: rotate(360deg); } }
-    @keyframes pulse    { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
-
-    /* ── Responsive ────────────────────────────── */
-    @media (max-width: 540px) {
-      h1 { font-size: 1.8rem; }
-      .lang-btn { font-size: .6rem; }
+    @media (max-width: 640px) {
+      .sidebar { display: none; }
+      .suggestions { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
 
-<div class="grid-bg"></div>
-
-<div class="page">
-
-  <!-- Header -->
-  <header>
-    <div class="header-meta">AI-Powered Debugger</div>
-    <h1>Code<span>Rescue</span></h1>
-    <p class="tagline">// paste broken code → get the fix.</p>
-  </header>
-
-  <!-- Input Panel -->
-  <div class="panel">
-    <div class="panel-bar">
-      <div class="dot dot-red"></div>
-      <div class="dot dot-amber"></div>
-      <div class="dot dot-green"></div>
-      <span class="panel-title">input.code — select language below</span>
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
     </div>
+    <span class="logo-name">CodeRescue</span>
+  </div>
 
-    <!-- Language selector -->
-    <div class="lang-row" id="langRow">
-      <button class="lang-btn active" data-lang="python">python</button>
-      <button class="lang-btn" data-lang="javascript">javascript</button>
-      <button class="lang-btn" data-lang="typescript">typescript</button>
-      <button class="lang-btn" data-lang="java">java</button>
-      <button class="lang-btn" data-lang="c">c</button>
-      <button class="lang-btn" data-lang="cpp">c++</button>
-      <button class="lang-btn" data-lang="csharp">c#</button>
-      <button class="lang-btn" data-lang="go">go</button>
-      <button class="lang-btn" data-lang="rust">rust</button>
-      <button class="lang-btn" data-lang="bash">bash</button>
+  <button class="new-chat-btn" id="newChatBtn">
+    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    New session
+  </button>
+
+  <div class="sidebar-section-label">Recent</div>
+  <div id="historyList"></div>
+
+  <div class="sidebar-footer">
+    <div class="model-badge">
+      <div class="model-dot"></div>
+      Claude · Bug Analysis
     </div>
+  </div>
+</aside>
 
-    <textarea id="codeInput" class="code-area" placeholder="// paste your broken code here and hit ANALYZE..."></textarea>
+<main class="main">
+  <div class="topbar">
+    <span class="topbar-title">AI Debugger</span>
+    <select class="lang-selector" id="langSelect">
+      <option value="python">python</option>
+      <option value="javascript">javascript</option>
+      <option value="typescript">typescript</option>
+      <option value="java">java</option>
+      <option value="c">c</option>
+      <option value="cpp">c++</option>
+      <option value="csharp">c#</option>
+      <option value="go">go</option>
+      <option value="rust">rust</option>
+      <option value="bash">bash</option>
+    </select>
+  </div>
 
-    <div class="btn-row">
-      <button class="analyze-btn" id="analyzeBtn">
-        <div class="spinner"></div>
-        <span class="btn-text">Analyze &amp; Fix</span>
+  <div class="chat-container" id="chatContainer">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+      </div>
+      <h2>What code needs fixing?</h2>
+      <p>Paste broken code in the box below. I'll find the bug and give you the corrected version.</p>
+      <div class="suggestions">
+        <button class="suggestion-chip" data-example="python">
+          <strong>Python example</strong>Off-by-one loop error
+        </button>
+        <button class="suggestion-chip" data-example="javascript">
+          <strong>JavaScript example</strong>Async/await mistake
+        </button>
+        <button class="suggestion-chip" data-example="java">
+          <strong>Java example</strong>Null pointer issue
+        </button>
+        <button class="suggestion-chip" data-example="cpp">
+          <strong>C++ example</strong>Memory leak pattern
+        </button>
+      </div>
+    </div>
+    <div class="message-group" id="messageGroup" style="display:none;"></div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-wrapper">
+      <textarea id="codeInput" class="input-box" placeholder="Paste your broken code here…" rows="1"></textarea>
+      <button class="send-btn" id="sendBtn" title="Analyze">
+        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>
+    <div class="input-footer">CodeRescue · Powered by Claude</div>
   </div>
-
-  <div class="divider">output</div>
-
-  <!-- Output Panel -->
-  <div class="panel" id="outputSection">
-    <div class="panel-bar">
-      <div class="dot dot-red"></div>
-      <div class="dot dot-amber"></div>
-      <div class="dot dot-green"></div>
-      <span class="panel-title" id="outputPanelTitle">result.json</span>
-    </div>
-
-    <!-- Bug explanation -->
-    <div class="explanation-box">
-      <div class="output-label label-bug">
-        <span class="label-icon">⚠</span> bug detected
-      </div>
-      <p id="errorExplanation"></p>
-    </div>
-
-    <!-- Fixed code -->
-    <div class="fixed-code-wrap">
-      <div class="output-label label-fix">
-        <span class="label-icon">✓</span> fixed code
-      </div>
-      <button class="copy-btn" id="copyBtn">copy</button>
-      <pre><code id="fixedCode"></code></pre>
-    </div>
-
-    <div class="status-bar">
-      <div class="status-dot"></div>
-      <span id="statusText">analysis complete</span>
-    </div>
-  </div>
-
-  <footer>
-    CodeRescue &nbsp;·&nbsp; frontend on <a href="#" target="_blank">GitHub Pages</a> &nbsp;·&nbsp; backend on <a href="#" target="_blank">Hugging Face</a>
-  </footer>
-
-</div>
+</main>
 
 <script src="app.js"></script>
+<script>
+  const EXAMPLES = {
+    python: `def find_max(nums):\n    max_val = 0\n    for i in range(1, len(nums) + 1):\n        if nums[i] > max_val:\n            max_val = nums[i]\n    return max_val\n\nprint(find_max([3, 7, 2, 9, 4]))`,
+    javascript: `async function fetchUser(id) {\n    const res = fetch(\`/api/users/\${id}\`);\n    const data = res.json();\n    return data.username;\n}\nfetchUser(42).then(name => console.log(name));`,
+    java: `public class App {\n    public static void main(String[] args) {\n        String s = null;\n        System.out.println(s.length());\n    }\n}`,
+    cpp: `#include <iostream>\nvoid leak() {\n    int* arr = new int[100];\n    arr[0] = 42;\n}\nint main() {\n    for (int i = 0; i < 1000; i++) leak();\n}`,
+  };
+
+  const chatContainer = document.getElementById('chatContainer');
+  const emptyState    = document.getElementById('emptyState');
+  const messageGroup  = document.getElementById('messageGroup');
+  const codeInput     = document.getElementById('codeInput');
+  const sendBtn       = document.getElementById('sendBtn');
+  const langSelect    = document.getElementById('langSelect');
+  const newChatBtn    = document.getElementById('newChatBtn');
+  const historyList   = document.getElementById('historyList');
+
+  let isLoading = false;
+
+  codeInput.addEventListener('input', () => {
+    codeInput.style.height = 'auto';
+    codeInput.style.height = Math.min(codeInput.scrollHeight, 200) + 'px';
+  });
+
+  codeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  });
+
+  sendBtn.addEventListener('click', handleSend);
+  newChatBtn.addEventListener('click', resetSession);
+
+  document.querySelectorAll('.suggestion-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const lang = chip.dataset.example;
+      langSelect.value = lang;
+      codeInput.value = EXAMPLES[lang] || '';
+      codeInput.style.height = 'auto';
+      codeInput.style.height = Math.min(codeInput.scrollHeight, 200) + 'px';
+      codeInput.focus();
+    });
+  });
+
+  async function handleSend() {
+    const code = codeInput.value.trim();
+    if (!code || isLoading) return;
+    const lang = langSelect.value;
+
+    showMessages();
+    appendUserMessage(code, lang);
+    codeInput.value = '';
+    codeInput.style.height = 'auto';
+
+    const loadingId = appendLoadingMessage();
+    setLoading(true);
+
+    try {
+      const res = await fetch(getEndpoint('/analyze'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, language: lang }),
+      });
+
+      let data;
+      try {
+        const text = await res.text();
+        data = JSON.parse(text);
+      } catch { throw new Error('Server returned an invalid response.'); }
+
+      if (!res.ok) throw new Error((data && data.error) || `Server error ${res.status}`);
+      removeLoading(loadingId);
+      appendAssistantMessage(data, lang);
+      addToHistory(lang, code);
+
+    } catch (err) {
+      removeLoading(loadingId);
+      appendAssistantMessage({ error: err.message || 'Something went wrong.', fixed_code: '', language: lang }, lang);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function showMessages() {
+    emptyState.style.display = 'none';
+    messageGroup.style.display = 'block';
+  }
+
+  function resetSession() {
+    messageGroup.innerHTML = '';
+    messageGroup.style.display = 'none';
+    emptyState.style.display = 'flex';
+  }
+
+  function appendUserMessage(code, lang) {
+    const msg = document.createElement('div');
+    msg.className = 'message';
+    msg.innerHTML = `
+      <div class="avatar avatar-user">YOU</div>
+      <div class="message-body">
+        <div class="message-sender">You</div>
+        <div class="user-code-block">
+          <div class="code-block-header"><span class="code-lang-tag">${esc(lang)}</span></div>
+          <div class="code-block-body">${esc(code)}</div>
+        </div>
+      </div>`;
+    messageGroup.appendChild(msg);
+    scrollBottom();
+  }
+
+  function appendLoadingMessage() {
+    const id = 'load-' + Date.now();
+    const msg = document.createElement('div');
+    msg.className = 'message'; msg.id = id;
+    msg.innerHTML = `
+      <div class="avatar avatar-assistant">
+        <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+      </div>
+      <div class="message-body">
+        <div class="message-sender">CodeRescue</div>
+        <div class="loading-dots"><span></span><span></span><span></span></div>
+      </div>`;
+    messageGroup.appendChild(msg);
+    scrollBottom();
+    return id;
+  }
+
+  function removeLoading(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
+
+  function appendAssistantMessage(data, lang) {
+    const fixedCode  = (data.fixed_code || '// No fixed code returned.').replace(/\\n/g, '\n');
+    const explanation = data.error || 'No explanation returned.';
+    const copyId = 'copy-' + Date.now();
+    const codeId = 'code-' + Date.now();
+
+    const msg = document.createElement('div');
+    msg.className = 'message';
+    msg.innerHTML = `
+      <div class="avatar avatar-assistant">
+        <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+      </div>
+      <div class="message-body">
+        <div class="message-sender">CodeRescue <span style="color:var(--text-dim);font-weight:400;font-size:0.72rem;margin-left:0.4rem;">${new Date().toLocaleTimeString()}</span></div>
+        <div class="response-cards">
+          <div class="bug-card">
+            <div class="card-label card-label-bug"><div class="card-label-dot dot-red"></div>Bug detected</div>
+            <p class="bug-explanation">${esc(explanation)}</p>
+          </div>
+          <div class="fix-card">
+            <div class="fix-card-header">
+              <div class="card-label card-label-fix" style="margin:0;">
+                <div class="card-label-dot dot-green"></div>
+                Fixed code &mdash; <span style="font-family:var(--mono);font-size:0.68rem;">${esc(data.language || lang)}</span>
+              </div>
+              <button class="copy-btn" id="${copyId}">copy</button>
+            </div>
+            <pre class="fix-code" id="${codeId}"></pre>
+          </div>
+        </div>
+      </div>`;
+
+    messageGroup.appendChild(msg);
+    document.getElementById(codeId).textContent = fixedCode;
+
+    document.getElementById(copyId).addEventListener('click', () => {
+      const btn = document.getElementById(copyId);
+      navigator.clipboard.writeText(fixedCode).then(() => {
+        btn.textContent = 'copied!'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2200);
+      });
+    });
+
+    scrollBottom();
+  }
+
+  function addToHistory(lang, code) {
+    const preview = code.split('\n')[0].slice(0, 30) + '…';
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `
+      <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      ${esc(lang)} · ${esc(preview)}`;
+    historyList.prepend(item);
+  }
+
+  function setLoading(on) { isLoading = on; sendBtn.disabled = on; }
+  function scrollBottom() { setTimeout(() => { chatContainer.scrollTop = chatContainer.scrollHeight; }, 50); }
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  wakeUp();
+</script>
 </body>
 </html>
