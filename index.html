@@ -176,25 +176,29 @@
     .code-lang-tag { font-family: var(--mono); font-size: 0.68rem; color: var(--text-muted); letter-spacing: 0.06em; }
     .code-block-body { padding: 1rem; font-family: var(--mono); font-size: 0.8rem; line-height: 1.7; color: #c8f7dc; white-space: pre-wrap; word-break: break-all; max-height: 280px; overflow-y: auto; }
 
-    .response-cards { display: flex; flex-direction: column; gap: 0.75rem; }
+    /* ChatGPT-style response */
+    .assistant-prose { font-size: 0.88rem; line-height: 1.75; color: var(--text); margin-bottom: 1rem; }
 
-    .bug-card { background: rgba(255,107,107,0.06); border: 1px solid rgba(255,107,107,0.18); border-radius: var(--radius); padding: 1rem 1.1rem; }
-    .card-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.6rem; }
-    .card-label-bug { color: var(--red); }
-    .card-label-fix { color: var(--accent); }
-    .card-label-dot { width: 6px; height: 6px; border-radius: 50%; }
-    .dot-red { background: var(--red); }
-    .dot-green { background: var(--accent); }
-    .bug-explanation { font-size: 0.85rem; line-height: 1.7; color: #ffb3bf; }
+    .code-block-wrap { background: var(--surface2); border-radius: var(--radius); overflow: hidden; margin-bottom: 0.25rem; }
+    .code-block-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 0.45rem 1rem; border-bottom: 1px solid var(--border); }
+    .code-block-lang { font-family: var(--mono); font-size: 0.68rem; color: var(--text-muted); letter-spacing: 0.05em; }
+    .fix-code { padding: 1rem; font-family: var(--mono); font-size: 0.8rem; line-height: 1.75; color: #a8f0c6; white-space: pre-wrap; word-break: break-all; max-height: 480px; overflow-y: auto; }
 
-    .fix-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-    .fix-card-header { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1rem; background: var(--surface2); border-bottom: 1px solid var(--border); }
+    /* Copy button — icon style like ChatGPT */
+    .copy-btn {
+      display: flex; align-items: center; gap: 0.35rem;
+      font-family: var(--sans); font-size: 0.72rem;
+      background: transparent; border: none;
+      color: var(--text-muted); cursor: pointer;
+      padding: 0.2em 0.4em; border-radius: 5px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .copy-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .copy-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+    .copy-btn.copied { color: var(--accent); }
 
-    .copy-btn { font-family: var(--mono); font-size: 0.65rem; padding: 0.25em 0.7em; border: 1px solid var(--border); border-radius: 5px; background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
-    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .copy-btn.copied { border-color: var(--accent); color: var(--accent); background: var(--accent-muted); }
-
-    .fix-code { padding: 1rem; font-family: var(--mono); font-size: 0.8rem; line-height: 1.75; color: #a8f0c6; white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow-y: auto; }
+    /* Action row below code block */
+    .action-row { display: flex; align-items: center; gap: 0.25rem; margin-top: 0.15rem; }
 
     .loading-dots { display: flex; align-items: center; gap: 4px; padding: 0.3rem 0; }
     .loading-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); animation: dotBounce 1.2s ease infinite; }
@@ -449,7 +453,7 @@
   }
 
   function appendAssistantMessage(data, lang) {
-    const fixedCode  = (data.fixed_code || '// No fixed code returned.').replace(/\\n/g, '\n');
+    const fixedCode   = (data.fixed_code || '// No fixed code returned.').replace(/\\n/g, '\n');
     const explanation = data.error || 'No explanation returned.';
     const copyId = 'copy-' + Date.now();
     const codeId = 'code-' + Date.now();
@@ -462,34 +466,39 @@
       </div>
       <div class="message-body">
         <div class="message-sender">CodeRescue <span style="color:var(--text-dim);font-weight:400;font-size:0.72rem;margin-left:0.4rem;">${new Date().toLocaleTimeString()}</span></div>
-        <div class="response-cards">
-          <div class="bug-card">
-            <div class="card-label card-label-bug"><div class="card-label-dot dot-red"></div>Bug detected</div>
-            <p class="bug-explanation">${esc(explanation)}</p>
+        <p class="assistant-prose">${esc(explanation)}</p>
+        <div class="code-block-wrap">
+          <div class="code-block-toolbar">
+            <span class="code-block-lang">${esc(data.language || lang)}</span>
+            <button class="copy-btn" id="${copyId}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              Copy code
+            </button>
           </div>
-          <div class="fix-card">
-            <div class="fix-card-header">
-              <div class="card-label card-label-fix" style="margin:0;">
-                <div class="card-label-dot dot-green"></div>
-                Fixed code &mdash; <span style="font-family:var(--mono);font-size:0.68rem;">${esc(data.language || lang)}</span>
-              </div>
-              <button class="copy-btn" id="${copyId}">copy</button>
-            </div>
-            <pre class="fix-code" id="${codeId}"></pre>
-          </div>
+          <pre class="fix-code" id="${codeId}"></pre>
+        </div>
+        <div class="action-row">
+          <button class="copy-btn" id="${copyId}-2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy
+          </button>
         </div>
       </div>`;
 
     messageGroup.appendChild(msg);
     document.getElementById(codeId).textContent = fixedCode;
 
-    document.getElementById(copyId).addEventListener('click', () => {
-      const btn = document.getElementById(copyId);
+    function doCopy(btnEl) {
       navigator.clipboard.writeText(fixedCode).then(() => {
-        btn.textContent = 'copied!'; btn.classList.add('copied');
-        setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2200);
+        const orig = btnEl.innerHTML;
+        btnEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+        btnEl.classList.add('copied');
+        setTimeout(() => { btnEl.innerHTML = orig; btnEl.classList.remove('copied'); }, 2200);
       });
-    });
+    }
+
+    document.getElementById(copyId).addEventListener('click', e => doCopy(e.currentTarget));
+    document.getElementById(copyId + '-2').addEventListener('click', e => doCopy(e.currentTarget));
 
     scrollBottom();
   }
