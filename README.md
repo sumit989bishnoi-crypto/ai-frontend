@@ -1,13 +1,7 @@
 ---
 title: Sumit
-emoji: 👀
-colorFrom: gray
-colorTo: gray
-sdk: gradio
-sdk_version: 6.11.0
-app_file: app.py
-pinned: false
-short_description: a ai backend for meta
+app_file: index.html,app.js
+short_description: A forntend for ai project
 
 ---
 🧠 CodeRescue
