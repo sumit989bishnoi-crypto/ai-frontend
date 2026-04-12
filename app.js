@@ -1,7 +1,8 @@
-//js 
+//app.js
 
-//const HF_SPACE_URL = 'https://sumit989-ai-backend.hf.space';
-const HF_SPACE_URL = 'https://sumit989-test-run-before-deploying.hf.space';
+const HF_SPACE_URL = 'https://sumit989-ai-backend.hf.space';
+//testing beackend
+//const HF_SPACE_URL = 'https://sumit989-test-run-before-deploying.hf.space'; 
 
 function getEndpoint(path) {
     const isGitHubPages = window.location.hostname.includes('github.io');
