@@ -1,15 +1,7 @@
-/**
- * CodeRescue — app.js
- * Provides getEndpoint() and wakeUp() used by index.html.
- *
- * HOW TO DEPLOY:
- *   1. Set HF_SPACE_URL below to your Hugging Face Space URL.
- *   2. Push index.html + app.js to GitHub → enable Pages.
- */
+//js 
 
 const HF_SPACE_URL = 'https://sumit989-ai-backend.hf.space';
 
-// Resolve full API URL — uses HF Space on GitHub Pages, relative path locally
 function getEndpoint(path) {
     const isGitHubPages = window.location.hostname.includes('github.io');
     const base = isGitHubPages ? HF_SPACE_URL : '';
@@ -17,17 +9,25 @@ function getEndpoint(path) {
     return `${normalizedBase}${path}`;
 }
 
-// Wake up the HF Space on page load (prevents cold-start delay on first request)
+// FIX: added AbortController timeout + exponential backoff so a stalled
+// HF Space doesn't hang the wake-up call indefinitely.
 async function wakeUp() {
-    for (let i = 0; i < 3; i++) {
+    const delays = [0, 2000, 4000]; // retry delays in ms
+    for (let i = 0; i < delays.length; i++) {
+        if (delays[i] > 0) await new Promise(r => setTimeout(r, delays[i]));
         try {
-            await fetch(getEndpoint('/health'));
-            console.log('[CodeRescue] Backend awake.');
-            return;
+            const controller = new AbortController();
+            const tid = setTimeout(() => controller.abort(), 5000); // 5s timeout per attempt
+            const res = await fetch(getEndpoint('/health'), { signal: controller.signal });
+            clearTimeout(tid);
+            if (res.ok) {
+                console.log('[CodeRescue] Backend awake.');
+                return;
+            }
+            console.warn(`[CodeRescue] Wake-up attempt ${i + 1}: status ${res.status}`);
         } catch (err) {
-            console.warn(`[CodeRescue] Wake-up attempt ${i + 1} failed:`, err);
+            console.warn(`[CodeRescue] Wake-up attempt ${i + 1} failed:`, err.message);
         }
-        await new Promise(r => setTimeout(r, 2000));
     }
     console.warn('[CodeRescue] Could not reach backend after 3 attempts.');
 }
